@@ -1,5 +1,6 @@
 {
   stdenv,
+  lib,
   buildFHSEnv,
   runCommand,
   requireFile,
@@ -8,7 +9,7 @@
   configFile = import ./config.nix {
     product = "Vivado";
     edition = "Vivado ML Enterprise";
-    destination = "${placeholder "out"}/opt";
+    destination = "/opt/Xilinx";
   };
 
   installEnv = buildFHSEnv {
@@ -19,6 +20,10 @@
         zlib
         lsb-release
       ];
+
+    extraBwrapArgs = [
+      "--bind $out/opt /opt"
+    ];
   };
 
   vivadoInstalled = stdenv.mkDerivation {
@@ -42,24 +47,23 @@
       EOF
       cat $PWD/install_config.txt
 
-
       runHook postConfigure
     '';
 
     installPhase = ''
       runHook preInstall
+      cat $PWD/install_config.txt
+
+      mkdir -p $out/opt/
 
       xilinx-install-env $src/FPGAs_AdaptiveSoCs_Unified_2024.2_1113_1001/xsetup --agree 3rdPartyEULA,XilinxEULA --batch Install -c $PWD/install_config.txt
-
-      mkdir -p $out
-      cp -r $PWD/opt $out/opt
 
       runHook postInstall
     '';
   };
 
-  runtimeEnv = buildFHSEnv {
-    name = "xilinx-runtime-env";
+  vivadoWrapped = buildFHSEnv {
+    name = "vivado";
     targetPkgs = pkgs:
       with pkgs; let
         ncurses' = ncurses5.overrideAttrs (old: {
@@ -74,6 +78,7 @@
         zlib
         glibc
         glibc.dev
+        glibc.static
         gcc
 
         fontconfig
@@ -101,9 +106,14 @@
         vivadoInstalled
       ];
 
-    runScript = ''
-      ${vivadoInstalled}/opt/Vivado/2024.2/bin/vivado
+    extraBwrapArgs = [
+      "--ro-bind ${vivadoInstalled}/opt /opt"
+    ];
+
+    profile = ''
+      export LIBRARY_PATH=/lib:/lib64
     '';
+
   };
 in
-  runtimeEnv
+  vivadoWrapped
