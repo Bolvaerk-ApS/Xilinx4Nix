@@ -15,6 +15,5 @@
         vivado = pkgs.callPackage ./pkgs/vivado.nix {};
       };
     };
-    devShells.x86_64-linux.default = pkgs.callPackage ./pkgs/vivado.nix {};
   };
 }
